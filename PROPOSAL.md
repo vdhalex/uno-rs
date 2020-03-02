@@ -31,4 +31,4 @@ As a team, we plan to build a CLI implementation of the card game Uno. It will b
 - Our unit testing will be focused on the testing of game rules and communication over XMPP. The flow of the actual game will have to be on the user level, so the focus will be on whitebox rather than blackbox testing.
 - Use cases: Nerds who want to play CLI uno.
 
-![Uno API sketch](~/Desktop/unors.jpg)
+![Uno API sketch](./media/unors.jpg)
