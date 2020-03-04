@@ -2,7 +2,6 @@
 
 ### The Product
 As a team, we plan to build a CLI implementation of the card game Uno. It will be an online game for 2-4 players. The deck will be shuffled and the cards distributed among the players who will each play one at time; until there's a winner.
-===
 
 ### Must haves
 - A 3 player P2P online game.
@@ -31,7 +30,6 @@ As a team, we plan to build a CLI implementation of the card game Uno. It will b
 ### Testing
 - Our unit testing will be focused on the testing of game rules and communication over XMPP. The flow of the actual game will have to be on the user level, so the focus will be on whitebox rather than blackbox testing.
 - Use cases: Nerds who want to play CLI uno, like us.
-===
 
 ### API Sketch
 ![Uno API sketch](./media/api-sketch.jpg)
