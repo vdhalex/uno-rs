@@ -10,8 +10,8 @@ As a team, we plan to build a CLI implementation of the card game Uno. It will b
   - Using a third party XML parser to make and parse requests.
 - CLI interface with a {number}{first_letter_of_color} scheme.
 - Help command to give player possible commands.
-- We have 2 possibility for the flow
-  - We send the state with every message to each player in which case one player doesn't need to support the full load but then encryption is ever more important to ensure players don't check other player's cards.
+- We have 2 possibilities for the flow
+  - We send the state with every message to each player in which case one player doesn't need to support the full load but then encryption is even more important to ensure players don't check other player's cards.
   - One player is the main hub through which all XMPP requests go through, in which case we really only need to worry about the host checking other people's cards.
 
 ### Reaches
