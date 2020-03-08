@@ -7,22 +7,27 @@ pub enum ColorType {
     Yellow,
     Blue,
     Green,
+    None,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum CardType {
     Number(isize),
-    WildCard(String),
+    SkipCard,
+    Reversecard,
+    Draw2card,
+    Wildcard,
+    Wildcard4,
+}
+
+pub struct unoCard {
+    color: Option<ColorType>,
+    inst: CardType,
 }
 
 pub struct unoPlayer {
-    cards: Vec<UnoCard>,
+    cards: Vec<unoCard>,
     len: usize,
-}
-
-pub struct UnoCard {
-    color: Option<ColorType>,
-    inst: CardType,
 }
 
 impl UnoCard {
@@ -32,18 +37,18 @@ impl UnoCard {
 }
 
 impl gamePlayer for unoPlayer {
-    fn new(cards: &str) -> Self {
-        for card in cards.split(' ') {
-            // not sure how we want to try and do this
+    fn new() -> Self {
+        unoPlayer{
+            cards: Vec::new(),
+            len: 0,
         }
     }
 
-    fn draw(&self, deck: &mut Vec<u8>) {
-        self.cards.push(deck.pop());
-    }
-
-    fn add_cards(&mut self, cards: &[UnoCard]) {
-
+    fn add_cards(&mut self, cards: &[u8]) {
+        for val in cards {
+            self.cards.push(val);
+            self.len += 1;
+        }
     }
 
     fn play_move(cards_to_play: &str) -> Vec<UnoCard>{
