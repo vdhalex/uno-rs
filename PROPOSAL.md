@@ -34,3 +34,6 @@ As a team, we plan to build a CLI implementation of the card game Uno. It will b
 ### API Sketch
 ![Uno API sketch](./media/api-sketch.jpg)
 The player object would include an ID as well as their hash function for shuffles and deck access.
+
+### Uno deck for reference
+![Uno Deck Contents](./media/UNO_cards_deck.svg.png)
