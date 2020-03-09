@@ -13,7 +13,7 @@ pub enum ColorType {
 #[derive(Debug, PartialEq)]
 pub enum CardType {
     Number(isize),
-    SkipCard,
+    Skipcard,
     Reversecard,
     Draw2card,
     Wildcard,
@@ -21,7 +21,7 @@ pub enum CardType {
 }
 
 pub struct unoCard {
-    color: Option<ColorType>,
+    pub(crate) color: Option<ColorType>,
     inst: CardType,
 }
 
@@ -44,14 +44,14 @@ impl gamePlayer for unoPlayer {
         }
     }
 
-    fn add_cards(&mut self, cards: &[u8]) {
+    fn add_cards(&mut self, cards: &[unoCard]) {
         for val in cards {
-            self.cards.push(val);
+            self.cards.push(**val);
             self.len += 1;
         }
     }
 
-    fn play_move(cards_to_play: &str) -> Vec<UnoCard>{
-        // return cards_to_play
+    fn show_cards(&mut self) -> &[unoCard] {
+        &self.cards
     }
 }

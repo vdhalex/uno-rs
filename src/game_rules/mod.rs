@@ -1,3 +1,6 @@
+use std::io::{BufRead, Write};
+use crate::errors::Error;
+
 pub mod unostate;
 
 pub trait gameState {

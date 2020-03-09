@@ -11,12 +11,10 @@ pub enum ArgsError {
 
 #[derive(Debug, Error)]
 pub enum InputError {
-    #[error("No path found")]
-    NoPathFound,
-    #[error("only 2 vertex for path, given: {0}")]
-    IncorrectInput(usize),
-    #[error("Unknown node: {0}")]
-    UnknownNode(String),
+    #[error("Hand played not same as last hand color")]
+    WrongColorCard,
+    #[error("Incorrect input type: {0}")]
+    IncorrectInput(String),
 }
 
 #[derive(Debug, Error)]

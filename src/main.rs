@@ -8,6 +8,7 @@ use uno::player::unoplayer::{unoPlayer, unoCard, CardType, ColorType};
 mod errors;
 use errors::*;
 use std::fs::File;
+use uno::game_rules::gameState;
 
 fn main() {
     finish(interact(stdin().lock(), stdout(), stderr()));
