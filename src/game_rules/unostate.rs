@@ -1,12 +1,12 @@
 extern crate rand;
 
 use rand::Rng;
-use super::gameState;
+use super::GameState;
 use std::io::{stderr, stdin, stdout, BufRead, BufReader, Write};
 use std::string::ToString;
-use crate::player::unoplayer::{unoPlayer, unoCard, CardType, ColorType};
+use crate::player::unoplayer::{UnoPlayer, UnoCard, CardType, ColorType};
 use crate::errors::{Error, InputError};
-use crate::player::gamePlayer; // write to the CLI interface
+use crate::player::GamePlayer; // write to the CLI interface
 use std::collections::HashMap;
 
 lazy_static! {
@@ -21,26 +21,26 @@ lazy_static! {
     };
 }
 
-pub struct unoState {
+pub struct UnoState {
     deck: Vec<u8>,
-    players: [unoPlayer; 4],
+    players: [UnoPlayer; 4],
     player_lens: [usize; 4],
-    lastCard: Option<unoCard>,
-    isActive: bool,
+    last_card: Option<UnoCard>,
+    is_active: bool,
 }
 
-impl gameState for unoState {
-    fn new(cards: Vec<String>) -> Self {
+impl GameState for UnoState {
+    fn new() -> Self {
         let mut deck = Vec::new();
         for ii in 1..109 {
             deck.push(ii as u8);
         }
-        return unoState {
+        return UnoState {
             deck: deck,
-            players: [unoPlayer::new(); 4],
+            players: [UnoPlayer::new(), UnoPlayer::new(), UnoPlayer::new(), UnoPlayer::new()],
             player_lens: [0, 0, 0, 0],
-            lastCard: None,
-            isActive: true,
+            last_card: None,
+            is_active: true,
         };
     }
 
@@ -54,26 +54,26 @@ impl gameState for unoState {
         // assign 6 cards to each player
         // set last card to be top of the deck
 
-        for i in 0..5 {
+        for i in 0..4 {
             // change this to convert u8s to unoCards
             let mut temp_cards = Vec::new();
             for ii in self.deck[0..6].to_vec() {
                 temp_cards.push(convert_num_to_card(ii));
             }
-            self.players[i].add_cards(&temp_cards);
+            self.players[i].add_cards(&mut temp_cards);
             self.deck.drain(0..6);
         }
-        self.lastCard = Some(convert_num_to_card(self.deck.pop().unwrap()));
+        self.last_card = Some(convert_num_to_card(self.deck.pop().unwrap()));
 
-        let mut tryAgain = false;
+        let mut try_again = false;
         let mut pos: usize = 0;
         let mut delta = 1;
-        print_instructions(pos, &self.lastCard.unwrap(), self.players[pos].show_cards(), output);
+        print_instructions(pos, self.last_card.as_ref().unwrap(), self.players[pos].show_cards(), &mut output);
         for line in input.lines() {
-           match check_input(line?.as_str(), self.lastCard.unwrap()) {
+           match check_input(line?.as_str(), self.last_card.as_ref().unwrap()) {
                Ok((card, color, action)) => {
-                   self.lastCard = Some(card);
-                   self.players[pos].remove_card(self.lastCard.unwrap());
+                   self.last_card = Some(card);
+                   self.players[pos].remove_card(self.last_card.as_ref().unwrap());
                    self.player_lens[pos] -= 1;
                    match action {
                        Some(CardType::Skipcard) => pos = update_position(pos, delta, 2),
@@ -85,24 +85,27 @@ impl gameState for unoState {
                            let cards = self.deck[0..2].to_vec();
                            pos = update_position(pos, delta, 0);
                            self.players[pos].add_cards(
-                           cards.iter().map(|c| convert_num_to_card(*c)).collect());
+                           &mut cards.iter().map(|c| convert_num_to_card(*c)).collect());
                        },
                        _ => pos = update_position(pos, delta, 0),
                    };
-                   tryAgain = false;
+                   try_again = false;
                }
                Err(err) => {
                    writeln!(error, "Error: {}", err)?;
-                   tryAgain = true;
+                   try_again = true;
                }
            };
-            if tryAgain {
-                writeln!(output, "Player {} goes again!", pos+1);
+            if try_again {
+                writeln!(output, "Player {} goes again!", pos+1)?;
             }
             if self.check_winner() {
                 break;
             }
-            print_instructions(pos, &self.lastCard.unwrap(), self.players[pos].show_cards(), output);
+
+            // ERROR IS HERE
+            // OUTPUT HAS USE OF MOVED VALUE ERROR
+            print_instructions(pos, self.last_card.as_ref().unwrap(), self.players[pos].show_cards(), &mut output);
         }
         // begin input for the game
         Ok(())
@@ -116,7 +119,7 @@ impl gameState for unoState {
     fn shuffle(&mut self) {
         let mut rng = rand::thread_rng();
         let len = self.deck.len();
-        for ii in 0..1000 {
+        for _ii in 0..1000 {
             let from = rng.gen_range(0, len);
             let to = rng.gen_range(0, len);
             let temp = self.deck[from];
@@ -127,7 +130,7 @@ impl gameState for unoState {
 
     fn check_winner(&self) -> bool {
         for ii in &self.player_lens {
-            if ii == 0 {
+            if *ii == 0 {
                 return true
             }
         }
@@ -135,30 +138,31 @@ impl gameState for unoState {
     }
 }
 
-fn update_position(mut pos: usize, delta: i8, mut skip: usize) -> usize {
+fn update_position(pos: usize, delta: i8, skip: usize) -> usize {
     let res = (pos as i8 +(skip as i8 +1)*delta)%4;
     res.abs() as usize
 }
 
-fn check_input(input: &str, last_card: unoCard) -> Result<(unoCard, ColorType, Option<CardType>), InputError> {
+fn check_input(input: &str, last_card: &UnoCard) -> Result<(UnoCard, ColorType, Option<CardType>), InputError> {
     if input.len() > 2 {
-        InputError::IncorrectInput(input.to_string())
+        return Err(InputError::IncorrectInput(input.to_string()));
     }
     // for result we should return the last card, a new color, and the action
     if input.contains(" ") {
         // should return an action struct --> update new last card with it
-        let temp_vec = input.split_ascii_whitespace().collect();
+        let temp_vec: Vec<_> = input.split_ascii_whitespace().collect();
         if temp_vec.len() > 2 {
-            Err(InputError::IncorrectInput(input.to_string()))
+            return Err(InputError::IncorrectInput(input.to_string()));
         }
 
         if temp_vec[0] != "W" || temp_vec[0] != "W4" {
-            Err(InputError::IncorrectInput(input.to_string()))
+            return Err(InputError::IncorrectInput(input.to_string()));
         }
 
         if temp_vec[1] != "R" || temp_vec[1] != "G" || temp_vec[1] != "Y" || temp_vec[1] != "B" {
-            Err(InputError::IncorrectInput(input.to_string()))
+            return Err(InputError::IncorrectInput(input.to_string()));
         }
+
 
         let colort = match temp_vec[1] {
             "R" => ColorType::Red,
@@ -171,49 +175,50 @@ fn check_input(input: &str, last_card: unoCard) -> Result<(unoCard, ColorType, O
         let cardt = match temp_vec[0] {
             "W" => CardType::Wildcard,
             "W4" => CardType::Wildcard4,
+            _ => CardType::None,
         };
-        return Ok((unoCard{
+        return Ok((UnoCard {
             inst: cardt,
             color: Some(colort)
         }, colort, Some(cardt)));
 
     }
 
+//    let one: usize = 1;
+//    let zero: usize = 0;
 
-    let one: usize = 1;
-    let zero: usize = 0;
-
-    let cardt = match input[zero].parse::<u32>() {
-        Ok(num) => CardType::Number(num as isize),
-        Err(err) => match input[zero] {
-            "S" => CardType::Skipcard,
-            "R" => CardType::Reversecard,
-            "D" => CardType::Draw2card,
+    let cardt = match input.chars().next() {
+        Some(num) if num.is_numeric() => CardType::Number(num as isize),
+        Some(letter) => match letter {
+            'S' => CardType::Skipcard,
+            'R' => CardType::Reversecard,
+            'D' => CardType::Draw2card,
              _  => CardType::None,
         },
+        _ => CardType::None,
     };
 
-    let colort = match input[one] {
-        "R" => ColorType::Red,
-        "G" => ColorType::Green,
-        "B" => ColorType::Blue,
-        "Y" => ColorType::Yellow,
+    let colort = match input.chars().next().unwrap() {
+        'R' => ColorType::Red,
+        'G' => ColorType::Green,
+        'B' => ColorType::Blue,
+        'Y' => ColorType::Yellow,
          _  => ColorType::None,
     };
 
     if cardt == CardType::None || colort == ColorType::None {
-        Err(InputError::IncorrectInput(input.to_string()))
+        return Err(InputError::IncorrectInput(input.to_string()));
     }
 
-    Ok((unoCard{
+    Ok((UnoCard {
         inst: cardt,
         color: Some(colort),
     }, colort, Some(cardt)))
 }
 
-fn print_instructions(player_num: usize, lastCard: &unoCard, player_cards: &[unoCard], mut output: impl Write) {
+fn print_instructions(player_num: usize, last_card: &UnoCard, player_cards: &[UnoCard], mut output: impl Write) {
     writeln!(output, "Player {}'s turn", player_num+1).unwrap();
-    writeln!(output, "Current Last Card {}", convert_card_to_string(lastCard)).unwrap();
+    writeln!(output, "Current Last Card {}", convert_card_to_string(last_card)).unwrap();
     write!(output, "Player {} current cards: ", player_num+1).unwrap();
     let card_len = player_cards.len();
     for ii in 0..card_len {
@@ -226,7 +231,7 @@ fn print_instructions(player_num: usize, lastCard: &unoCard, player_cards: &[uno
     }
 }
 
-fn convert_num_to_card(num: u8) -> unoCard {
+fn convert_num_to_card(num: u8) -> UnoCard {
     let cardt;
     let colort;
     let key = num%15;
@@ -247,14 +252,14 @@ fn convert_num_to_card(num: u8) -> unoCard {
         colort = ColorType::None;
     }
 
-    unoCard{
+    UnoCard {
         inst: cardt,
         color: Some(colort),
     }
 }
 
-fn convert_card_to_string(ucard: &unoCard) -> String {
-    let color = match ucard.get_color {
+fn convert_card_to_string(ucard: &UnoCard) -> String {
+    let color = match ucard.get_color() {
         Some(col) => {
             match col {
                 ColorType::Red => "R",
@@ -266,7 +271,7 @@ fn convert_card_to_string(ucard: &unoCard) -> String {
         },
         None => "",
     };
-    let mut card = match ucard.get_card {
+    let mut card = match ucard.get_card() {
         CardType::Number(n) => n.to_string(),
         CardType::Skipcard => "S".to_string(),
         CardType::Reversecard => "R".to_string(),

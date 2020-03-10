@@ -3,8 +3,8 @@ use crate::errors::Error;
 
 pub mod unostate;
 
-pub trait gameState {
-    fn new(cards: Vec<String>) -> Self;
+pub trait GameState {
+    fn new() -> Self;
     fn begin_play(
         &mut self,
         input: impl BufRead,

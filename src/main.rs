@@ -2,13 +2,13 @@ use std::collections::HashSet;
 use std::io::{stderr, stdin, stdout, BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::{env, fs, process};
-use uno::game_rules::unostate::unoState;
-use uno::player::unoplayer::{unoPlayer, unoCard, CardType, ColorType};
+use uno::game_rules::unostate::UnoState;
+use uno::player::unoplayer::{UnoPlayer, UnoCard, CardType, ColorType};
 
 mod errors;
 use errors::*;
 use std::fs::File;
-use uno::game_rules::gameState;
+use uno::game_rules::GameState;
 
 fn main() {
     finish(interact(stdin().lock(), stdout(), stderr()));
@@ -16,11 +16,11 @@ fn main() {
 
 fn interact(
     input: impl BufRead,
-    mut output: impl Write,
-    mut error: impl Write,
+    output: impl Write,
+    error: impl Write,
 ) -> Result<(), Error>{
-    let mut new_game_state = unoState::new();
-    new_game_state.begin_play();
+    let mut new_game_state = UnoState::new();
+    new_game_state.begin_play(input, output, error);
     Ok(())
 }
 

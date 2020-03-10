@@ -1,4 +1,4 @@
-use super::gamePlayer;
+use super::GamePlayer;
 use rand::prelude::*;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -21,61 +21,63 @@ pub enum CardType {
     None,
 }
 
-pub struct unoCard {
+#[derive(Debug, PartialEq)]
+pub struct UnoCard {
     pub(crate) color: Option<ColorType>,
-    inst: CardType,
+    pub(crate) inst: CardType,
 }
 
-pub struct unoPlayer {
-    cards: Vec<unoCard>,
+#[derive(Debug)]
+pub struct UnoPlayer {
+    cards: Vec<UnoCard>,
     len: usize,
 }
 
-impl unoCard {
+impl UnoCard {
     fn new(color: ColorType, inst: CardType) -> Self {
-        unoCard{
+        UnoCard {
             inst: inst,
             color: Some(color),
         }
     }
 
-    fn get_color(&mut self) -> Option<ColorType> {
+    pub(crate) fn get_color(&self) -> Option<ColorType> {
         self.color
     }
 
-    fn get_card(&mut self) -> CardType {
+    pub(crate) fn get_card(&self) -> CardType {
         self.inst
     }
 
-    fn clone(&mut self) -> unoCard {
-        unoCard{
+    fn clone(&mut self) -> UnoCard {
+        UnoCard {
             inst: self.inst,
             color: self.color,
         }
     }
 }
 
-impl gamePlayer for unoPlayer {
+impl GamePlayer for UnoPlayer {
     fn new() -> Self {
-        unoPlayer{
+        UnoPlayer {
             cards: Vec::new(),
             len: 0,
         }
     }
 
-    fn add_cards(&mut self, cards: &[unoCard]) {
+    fn add_cards(&mut self, cards: &mut Vec<UnoCard>) {
         for ii in 0..cards.len() {
             self.cards.push(cards[ii].clone());
         }
     }
 
-    fn show_cards(&mut self) -> &[unoCard] {
-        &self.cards
+    fn show_cards(&mut self) -> &mut [UnoCard] {
+        &mut self.cards
     }
 
-    fn remove_card(&mut self, card: unoCard) {
+    fn remove_card(&mut self, card: &UnoCard) {
         for ii in 0..self.len {
-            if self.cards[ii] == card {
+            if self.cards[ii] == *card {
                 self.cards.remove(ii);
                 break;
             }
