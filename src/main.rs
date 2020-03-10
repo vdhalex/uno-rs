@@ -30,7 +30,7 @@ fn finish(result: Result<(), Error>) -> ! {
         Err(e) => {
             eprintln!(
                 "{}: {}",
-                env::args().next().unwrap_or_else(|| "graph".into()),
+                env::args().next().unwrap_or_else(|| "uno".into()),
                 e
             );
             1

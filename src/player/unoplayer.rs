@@ -1,7 +1,7 @@
 use super::gamePlayer;
 use rand::prelude::*;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ColorType {
     Red,
     Yellow,
@@ -10,7 +10,7 @@ pub enum ColorType {
     None,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CardType {
     Number(isize),
     Skipcard,
@@ -18,6 +18,7 @@ pub enum CardType {
     Draw2card,
     Wildcard,
     Wildcard4,
+    None,
 }
 
 pub struct unoCard {
@@ -30,9 +31,27 @@ pub struct unoPlayer {
     len: usize,
 }
 
-impl UnoCard {
+impl unoCard {
     fn new(color: ColorType, inst: CardType) -> Self {
-        Self { color, inst }
+        unoCard{
+            inst: inst,
+            color: Some(color),
+        }
+    }
+
+    fn get_color(&mut self) -> Option<ColorType> {
+        self.color
+    }
+
+    fn get_card(&mut self) -> CardType {
+        self.inst
+    }
+
+    fn clone(&mut self) -> unoCard {
+        unoCard{
+            inst: self.inst,
+            color: self.color,
+        }
     }
 }
 
@@ -45,13 +64,21 @@ impl gamePlayer for unoPlayer {
     }
 
     fn add_cards(&mut self, cards: &[unoCard]) {
-        for val in cards {
-            self.cards.push(**val);
-            self.len += 1;
+        for ii in 0..cards.len() {
+            self.cards.push(cards[ii].clone());
         }
     }
 
     fn show_cards(&mut self) -> &[unoCard] {
         &self.cards
+    }
+
+    fn remove_card(&mut self, card: unoCard) {
+        for ii in 0..self.len {
+            if self.cards[ii] == card {
+                self.cards.remove(ii);
+                break;
+            }
+        }
     }
 }

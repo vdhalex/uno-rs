@@ -10,9 +10,7 @@ pub trait gameState {
         input: impl BufRead,
         output: impl Write,
         error: impl Write) -> Result<(), Error>;
-    fn get_move();
-    fn update_state();
-    fn shuffle();
-    fn send_cards();
-    fn check_winner();
+//    fn update_state();
+    fn shuffle(&mut self);
+    fn check_winner(&self) -> bool;
 }
