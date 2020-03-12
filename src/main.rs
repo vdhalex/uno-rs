@@ -20,13 +20,13 @@ fn main() {
 //     let mut stream = TcpStream::connect("127.0.0.1:5222")?;
 //     let mut buffer: Vec<u8> = vec![];
 
-//     let request = "
-//         <message id=kkkk from='shanks'>
-//             <player-turn>3<player-turn/>
-//             <last-card>hashlabel</last-card>
-//             <deck-encrypted>b'000000'etcetc</deck-encrypted>
-//             <current-action-state>string/draw2, draw4 or None</current-action-state>
-//         </message>";
+    // let request = "
+    //     <message key='111' from='curr_player'>
+    //         <player-turn>next_player<player-turn/>
+    //         <last-card>hashlabelofcard</last-card>
+    //         <deck-encrypted>b'000000'etcetc</deck-encrypted>
+    //         <current-action-state>draw2, draw4 or none</current-action-state>
+    //     </message>";
 
 //     stream.write(request.as_bytes())?;
 //     stream.read(&mut buffer)?;
