@@ -13,4 +13,5 @@ pub trait GameState {
 //    fn update_state();
     fn shuffle(&mut self);
     fn check_winner(&self) -> bool;
+    fn to_xml(&self) -> String;
 }

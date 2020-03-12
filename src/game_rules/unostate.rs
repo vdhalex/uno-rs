@@ -27,6 +27,7 @@ pub struct UnoState {
     player_lens: [usize; 4],
     last_card: Option<UnoCard>,
     is_active: bool,
+    curr_player: usize,
 }
 
 impl GameState for UnoState {
@@ -41,6 +42,7 @@ impl GameState for UnoState {
             player_lens: [0, 0, 0, 0],
             last_card: None,
             is_active: true,
+            curr_player: 0
         };
     }
 
@@ -66,28 +68,28 @@ impl GameState for UnoState {
         self.last_card = Some(convert_num_to_card(self.deck.pop().unwrap()));
 
         let mut try_again = false;
-        let mut pos: usize = 0;
+        // let mut self.curr_player: usize = 0;
         let mut delta = 1;
-        print_instructions(pos, self.last_card.as_ref().unwrap(), self.players[pos].show_cards(), &mut output);
+        print_instructions(self.curr_player, self.last_card.as_ref().unwrap(), self.players[self.curr_player].show_cards(), &mut output);
         for line in input.lines() {
            match check_input(line?.as_str(), self.last_card.as_ref().unwrap()) {
                Ok((card, color, action)) => {
                    self.last_card = Some(card);
-                   self.players[pos].remove_card(self.last_card.as_ref().unwrap());
-                   self.player_lens[pos] -= 1;
+                   self.players[self.curr_player].remove_card(self.last_card.as_ref().unwrap());
+                   self.player_lens[self.curr_player] -= 1;
                    match action {
-                       Some(CardType::Skipcard) => pos = update_position(pos, delta, 2),
+                       Some(CardType::Skipcard) => self.curr_player = update_position(self.curr_player, delta, 2),
                        Some(CardType::Reversecard) => {
-                           pos = update_position(pos, -1, 0);
+                           self.curr_player = update_position(self.curr_player, -1, 0);
                            delta = -1;
                        },
                        Some(CardType::Draw2card) => {
                            let cards = self.deck[0..2].to_vec();
-                           pos = update_position(pos, delta, 0);
-                           self.players[pos].add_cards(
+                           self.curr_player = update_position(self.curr_player, delta, 0);
+                           self.players[self.curr_player].add_cards(
                            &mut cards.iter().map(|c| convert_num_to_card(*c)).collect());
                        },
-                       _ => pos = update_position(pos, delta, 0),
+                       _ => self.curr_player = update_position(self.curr_player, delta, 0),
                    };
                    try_again = false;
                }
@@ -97,7 +99,7 @@ impl GameState for UnoState {
                }
            };
             if try_again {
-                writeln!(output, "Player {} goes again!", pos+1)?;
+                writeln!(output, "Player {} goes again!", self.curr_player+1)?;
             }
             if self.check_winner() {
                 break;
@@ -105,7 +107,7 @@ impl GameState for UnoState {
 
             // ERROR IS HERE
             // OUTPUT HAS USE OF MOVED VALUE ERROR
-            print_instructions(pos, self.last_card.as_ref().unwrap(), self.players[pos].show_cards(), &mut output);
+            print_instructions(self.curr_player, self.last_card.as_ref().unwrap(), self.players[self.curr_player].show_cards(), &mut output);
         }
         // begin input for the game
         Ok(())
@@ -135,6 +137,12 @@ impl GameState for UnoState {
             }
         }
         false
+    }
+
+    fn to_xml(&self) -> String {
+        let next_player = format!("<player>{}</player>", self.curr_player+1);
+        let last_card = format!("<last-card>{}</last-card>", self.last_card);
+        next_player
     }
 }
 
