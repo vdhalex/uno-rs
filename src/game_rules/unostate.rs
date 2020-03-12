@@ -1,13 +1,14 @@
 extern crate rand;
 
-use rand::Rng;
 use super::GameState;
+use crate::errors::{Error, InputError};
+use crate::player::unoplayer::{CardType, ColorType, UnoCard, UnoPlayer};
+use crate::player::GamePlayer; // write to the CLI interface
+use rand::Rng;
+use std::collections::HashMap;
+use std::intrinsics::write_bytes;
 use std::io::{stderr, stdin, stdout, BufRead, BufReader, Write};
 use std::string::ToString;
-use crate::player::unoplayer::{UnoPlayer, UnoCard, CardType, ColorType};
-use crate::errors::{Error, InputError};
-use crate::player::GamePlayer; // write to the CLI interface
-use std::collections::HashMap;
 
 lazy_static! {
     static ref NUM_CODE_MAP: HashMap<u8, CardType> = {
@@ -21,11 +22,20 @@ lazy_static! {
     };
 }
 
+pub enum ActionType {
+    Skip,
+    Reverse,
+    Draw2,
+    ChangeColor,
+    None,
+    WildCard4,
+}
+
 pub struct UnoState {
     deck: Vec<u8>,
     players: [UnoPlayer; 4],
     player_lens: [usize; 4],
-    last_card: Option<UnoCard>,
+    last_card: UnoCard,
     is_active: bool,
 }
 
@@ -37,9 +47,14 @@ impl GameState for UnoState {
         }
         return UnoState {
             deck: deck,
-            players: [UnoPlayer::new(), UnoPlayer::new(), UnoPlayer::new(), UnoPlayer::new()],
+            players: [
+                UnoPlayer::new(),
+                UnoPlayer::new(),
+                UnoPlayer::new(),
+                UnoPlayer::new(),
+            ],
             player_lens: [0, 0, 0, 0],
-            last_card: None,
+            last_card: UnoCard::new(ColorType::None, CardType::None),
             is_active: true,
         };
     }
@@ -49,15 +64,7 @@ impl GameState for UnoState {
         input: impl BufRead,
         mut output: impl Write,
         mut error: impl Write,
-    ) -> Result<(), Error>{
-
-        intro_message(&mut output);
-
-        for ii in 1..109 {
-            println!("{:?} -> {:?}", ii, convert_num_to_card(ii));
-        }
-
-
+    ) -> Result<(), Error> {
         self.shuffle();
         // assign 6 cards to each player
         // set last card to be top of the deck
@@ -69,62 +76,120 @@ impl GameState for UnoState {
                 temp_cards.push(convert_num_to_card(ii));
             }
             self.players[i].add_cards(&mut temp_cards);
+            self.player_lens[i] = 6;
             self.deck.drain(0..6);
         }
-        self.last_card = Some(convert_num_to_card(self.deck.pop().unwrap()));
+
+        while let Some(cur_card) = self.deck.pop() {
+            if cur_card & 15 >= 10 {
+                self.deck.push(cur_card);
+            } else {
+                self.last_card = convert_num_to_card(cur_card);
+                break;
+            }
+        }
 
         let mut try_again = false;
         let mut pos: usize = 0;
         let mut delta = 1;
-        print_instructions(pos, self.last_card.as_ref().unwrap(), self.players[pos].show_cards(), &mut output);
+        print_instructions(
+            pos,
+            &self.last_card,
+            self.players[pos].show_cards(),
+            &mut output,
+        );
         for line in input.lines() {
-            println!("Checking input: {:?}", line);
-           match check_input(line?.as_str(), self.last_card.as_ref().unwrap()) {
-               Ok((card, color, action)) => {
-                   self.last_card = Some(card);
-                   self.players[pos].remove_card(self.last_card.as_ref().unwrap());
-                   self.player_lens[pos] -= 1;
-                   match action {
-                       Some(CardType::Skipcard) => pos = update_position(pos, delta, 2),
-                       Some(CardType::Reversecard) => {
-                           pos = update_position(pos, -1, 0);
-                           delta = -1;
-                       },
-                       Some(CardType::Draw2card) => {
-                           let cards = self.deck[0..2].to_vec();
-                           pos = update_position(pos, delta, 0);
-                           self.players[pos].add_cards(
-                           &mut cards.iter().map(|c| convert_num_to_card(*c)).collect());
-                       },
-                       _ => pos = update_position(pos, delta, 0),
-                   };
-                   try_again = false;
-               }
-               Err(err) => {
-                   writeln!(error, "Error: {}", err)?;
-                   println!("Try again is true");
-                   try_again = true;
-               }
-           };
+            match check_input(line?.as_str(), &self.last_card) {
+                Ok((color, action)) => {
+                    self.deck.push(convert_card_to_num(&self.last_card));
+                    if !self.update_state(&color, action, pos) {
+                        writeln!(error, "{}", InputError::YouDontHaveThisCard)?;
+                        try_again = true;
+                    };
+                    if !try_again {
+                        match action {
+                            Some(CardType::Number(num)) => {
+                                pos = update_position(pos, delta, 0);
+                            }
+                            Some(CardType::Skipcard) => {
+                                pos = update_position(pos, delta, 1);
+                            }
+                            Some(CardType::Reversecard) => {
+                                delta = -1;
+                                pos = update_position(pos, delta, 0);
+                            }
+                            Some(CardType::Draw2card) => {
+                                let cards = self.deck[0..2].to_vec();
+                                pos = update_position(pos, delta, 0);
+                                self.players[pos].add_cards(
+                                    &mut cards.iter().map(|c| convert_num_to_card(*c)).collect(),
+                                );
+                            }
+                            Some(CardType::Wildcard) => {
+                                pos = update_position(pos, delta, 0);
+                            }
+                            Some(CardType::Wildcard4) => {
+                                let cards = self.deck[0..4].to_vec();
+                                pos = update_position(pos, delta, 0);
+                                self.players[pos].add_cards(
+                                    &mut cards.iter().map(|c| convert_num_to_card(*c)).collect(),
+                                );
+                            }
+                            Some(CardType::None) => {
+                                let cards = self.deck[0..2].to_vec();
+                                self.players[pos].add_cards(
+                                    &mut cards.iter().map(|c| convert_num_to_card(*c)).collect(),
+                                );
+                                pos = update_position(pos, delta, 0);
+                            }
+                            _ => pos = update_position(pos, delta, 0),
+                        };
+                        try_again = false;
+                    }
+                }
+                Err(err) => {
+                    writeln!(error, "Error: {}", err)?;
+                    try_again = true;
+                }
+            };
             if try_again {
-                writeln!(output, "Player {} goes again!", pos+1)?;
+                writeln!(output, "Player {} goes again!", pos + 1)?;
             }
             if self.check_winner() {
                 break;
             }
 
-            // ERROR IS HERE
-            // OUTPUT HAS USE OF MOVED VALUE ERROR
-            print_instructions(pos, self.last_card.as_ref().unwrap(), self.players[pos].show_cards(), &mut output);
+            print_instructions(
+                pos,
+                &self.last_card,
+                self.players[pos].show_cards(),
+                &mut output,
+            );
         }
         // begin input for the game
         Ok(())
     }
 
-//    fn update_state() {
-//        // from the card(s) received from a player update the state
-//        // should write to CLI here each time someone writes
-//    }
+    fn update_state(&mut self, color: &ColorType, card: Option<CardType>, pos: usize) -> bool {
+        if card != Some(CardType::Wildcard) && card != Some(CardType::Wildcard4) {
+            let tempCard = UnoCard::new(*color, card.unwrap());
+            if card != Some(CardType::None) && self.players[pos].remove_card(&tempCard) {
+                self.last_card.update_color(*color);
+                self.last_card.update_card(card.unwrap());
+                self.player_lens[pos] -= 1;
+                return true;
+            }
+        } else {
+            let tempCard = UnoCard::new(ColorType::None, card.unwrap());
+            if card != Some(CardType::None) && self.players[pos].remove_card(&tempCard) {
+                self.last_card.update_color(*color);
+                self.last_card.update_card(card.unwrap());
+                self.player_lens[pos] -= 1;
+                return true;
+            }
+        }
+        false
+    }
 
     fn shuffle(&mut self) {
         let mut rng = rand::thread_rng();
@@ -141,7 +206,7 @@ impl GameState for UnoState {
     fn check_winner(&self) -> bool {
         for ii in &self.player_lens {
             if *ii == 0 {
-                return true
+                return true;
             }
         }
         false
@@ -149,15 +214,47 @@ impl GameState for UnoState {
 }
 
 fn update_position(pos: usize, delta: i8, skip: usize) -> usize {
-    let res = (pos as i8 +(skip as i8 +1)*delta)%4;
+    let mut res = (pos as i8 + (skip as i8 + 1) * delta);
+    if res < 0 {
+        res += 4;
+    }
+    res %= 4;
     res.abs() as usize
 }
 
-fn check_input(input: &str, last_card: &UnoCard) -> Result<(UnoCard, ColorType, Option<CardType>), InputError> {
-    if input.len() > 2 {
-        return Err(InputError::IncorrectInput(input.to_string()));
+#[cfg(test)]
+mod test_update_position {
+    use crate::game_rules::unostate::update_position;
+
+    #[test]
+    fn basic_test() {
+        assert_eq!(update_position(0, 1, 0), 1)
     }
+
+    #[test]
+    fn test_skip() {
+        assert_eq!(update_position(0, 1, 1), 2)
+    }
+
+    #[test]
+    fn test_reverse() {
+        assert_eq!(update_position(1, -1, 0), 0)
+    }
+
+    #[test]
+    fn test_skip_reverse() {
+        assert_eq!(update_position(3, -1, 1), 1)
+    }
+}
+
+fn check_input(
+    input: &str,
+    last_card: &UnoCard,
+) -> Result<(ColorType, Option<CardType>), InputError> {
     // for result we should return the last card, a new color, and the action
+    if input == "No Move" {
+        return Ok((last_card.get_color().unwrap(), Some(CardType::None)));
+    }
     if input.contains(" ") {
         // should return an action struct --> update new last card with it
         let temp_vec: Vec<_> = input.split_ascii_whitespace().collect();
@@ -165,77 +262,121 @@ fn check_input(input: &str, last_card: &UnoCard) -> Result<(UnoCard, ColorType, 
             return Err(InputError::IncorrectInput(input.to_string()));
         }
 
-        if temp_vec[0] != "W" || temp_vec[0] != "W4" {
+        if temp_vec[0] == "w" || temp_vec[0] == "w4" {
+            if temp_vec[1] != "R" && temp_vec[1] != "G" && temp_vec[1] != "Y" && temp_vec[1] != "B"
+            {
+                return Err(InputError::IncorrectInput(input.to_string()));
+            }
+
+            let colort = match temp_vec[1] {
+                "R" => ColorType::Red,
+                "G" => ColorType::Green,
+                "B" => ColorType::Blue,
+                "Y" => ColorType::Yellow,
+                _ => ColorType::None,
+            };
+
+            let cardt = match temp_vec[0] {
+                "w" => CardType::Wildcard,
+                "w4" => CardType::Wildcard4,
+                _ => CardType::None,
+            };
+            return Ok((colort, Some(cardt)));
+        } else {
             return Err(InputError::IncorrectInput(input.to_string()));
         }
-
-        if temp_vec[1] != "R" || temp_vec[1] != "G" || temp_vec[1] != "Y" || temp_vec[1] != "B" {
-            return Err(InputError::IncorrectInput(input.to_string()));
-        }
-
-
-        let colort = match temp_vec[1] {
-            "R" => ColorType::Red,
-            "G" => ColorType::Green,
-            "B" => ColorType::Blue,
-            "Y" => ColorType::Yellow,
-            _  => ColorType::None,
-        };
-
-        let cardt = match temp_vec[0] {
-            "W" => CardType::Wildcard,
-            "W4" => CardType::Wildcard4,
-            _ => CardType::None,
-        };
-        return Ok((UnoCard {
-            inst: cardt,
-            color: Some(colort)
-        }, colort, Some(cardt)));
-
     }
 
-//    let one: usize = 1;
-//    let zero: usize = 0;
+    if input.len() > 2 {
+        return Err(InputError::IncorrectInput(input.to_string()));
+    }
 
-    let cardt = match input.chars().next() {
-        Some(num) if num.is_numeric() => CardType::Number(num as isize),
+    let mut input_chars = input.chars();
+    let cardt = match input_chars.next() {
+        Some(num) if num.is_numeric() => CardType::Number(num.to_digit(10).unwrap() as usize),
         Some(letter) => match letter {
-            'S' => CardType::Skipcard,
-            'R' => CardType::Reversecard,
-            'D' => CardType::Draw2card,
-             _  => CardType::None,
+            's' => CardType::Skipcard,
+            'r' => CardType::Reversecard,
+            'd' => CardType::Draw2card,
+            _ => CardType::None,
         },
         _ => CardType::None,
     };
 
-    let colort = match input.chars().next().unwrap() {
-        'R' => ColorType::Red,
-        'G' => ColorType::Green,
-        'B' => ColorType::Blue,
-        'Y' => ColorType::Yellow,
-         _  => ColorType::None,
+    let colort = match input_chars.next() {
+        Some('R') => ColorType::Red,
+        Some('G') => ColorType::Green,
+        Some('B') => ColorType::Blue,
+        Some('Y') => ColorType::Yellow,
+        _ => ColorType::None,
     };
 
     if cardt == CardType::None || colort == ColorType::None {
         return Err(InputError::IncorrectInput(input.to_string()));
     }
 
-    Ok((UnoCard {
-        inst: cardt,
-        color: Some(colort),
-    }, colort, Some(cardt)))
+    if colort != last_card.get_color().unwrap() && cardt != last_card.get_card() {
+        return Err(InputError::ColorMismatch);
+    }
+    Ok((colort, Some(cardt)))
 }
 
-fn print_instructions(player_num: usize, last_card: &UnoCard, player_cards: &[UnoCard], mut output: impl Write) {
-    writeln!(output, "Player {}'s turn", player_num+1).unwrap();
-    writeln!(output, "Current Last Card {}", convert_card_to_string(last_card)).unwrap();
-    writeln!(output, "Player {} current cards: ", player_num+1).unwrap();
+#[cfg(test)]
+mod test_check_input {
+    use crate::game_rules::unostate::check_input;
+    use crate::player::unoplayer::{CardType, ColorType, UnoCard};
+
+    #[test]
+    fn basic_test() {
+        match check_input(
+            "8R",
+            &UnoCard {
+                inst: CardType::Number(4),
+                color: Some(ColorType::Red),
+            },
+        ) {
+            Ok((color, num)) => {
+                assert_eq!(color, ColorType::Red);
+                assert_eq!(num.unwrap(), CardType::Number(8))
+            }
+            Err(err) => println!("Found an error"),
+        }
+    }
+
+    #[test]
+    fn test_wildcard() {
+        match check_input(
+            "w B",
+            &UnoCard {
+                inst: CardType::Number(4),
+                color: Some(ColorType::Red),
+            },
+        ) {
+            Ok((color, num)) => assert_eq!(color, ColorType::Blue),
+            Err(err) => println!("Found an error"),
+        }
+    }
+}
+
+fn print_instructions(
+    player_num: usize,
+    last_card: &UnoCard,
+    player_cards: &[UnoCard],
+    mut output: impl Write,
+) {
+    writeln!(output, "\n\nPlayer {}'s turn", player_num + 1).unwrap();
+    writeln!(
+        output,
+        "Current Last Card {}",
+        convert_card_to_string(last_card)
+    )
+    .unwrap();
+    write!(output, "Player {} current cards: ", player_num + 1).unwrap();
     let card_len = player_cards.len();
     for ii in 0..card_len {
-        if ii < card_len-1 {
+        if ii < card_len - 1 {
             write!(output, "{} ", convert_card_to_string(&player_cards[ii])).unwrap();
-        }
-        else {
+        } else {
             writeln!(output, "{}", convert_card_to_string(&player_cards[ii])).unwrap();
         }
     }
@@ -244,15 +385,14 @@ fn print_instructions(player_num: usize, last_card: &UnoCard, player_cards: &[Un
 fn convert_num_to_card(num: u8) -> UnoCard {
     let cardt;
     let colort;
-    let key = num%15;
-
+    let key = num % 15;
     if key >= 10 {
         cardt = NUM_CODE_MAP[&key];
     } else {
-        cardt = CardType::Number(key as isize);
+        cardt = CardType::Number(key as usize);
     }
     if key <= 12 {
-        colort = match num/22 {
+        colort = match num / 27 {
             0 => ColorType::Red,
             1 => ColorType::Green,
             2 => ColorType::Blue,
@@ -269,61 +409,54 @@ fn convert_num_to_card(num: u8) -> UnoCard {
     }
 }
 
+#[cfg(test)]
+mod test_convert_num_to_card {
+    #[test]
+    fn basic_test() {}
+}
+
 fn convert_card_to_string(ucard: &UnoCard) -> String {
     let color = match ucard.get_color() {
-        Some(col) => {
-            match col {
-                ColorType::Red => "R",
-                ColorType::Green => "G",
-                ColorType::Yellow => "Y",
-                ColorType::Blue => "B",
-                _ => "",
-            }
+        Some(col) => match col {
+            ColorType::Red => "R",
+            ColorType::Green => "G",
+            ColorType::Yellow => "Y",
+            ColorType::Blue => "B",
+            _ => "",
         },
         None => "",
     };
     let mut card = match ucard.get_card() {
         CardType::Number(n) => n.to_string(),
-        CardType::Skipcard => "S".to_string(),
-        CardType::Reversecard => "R".to_string(),
-        CardType::Draw2card => "D".to_string(),
-        CardType::Wildcard => "W".to_string(),
-        CardType::Wildcard4 => "W4".to_string(),
+        CardType::Skipcard => "s".to_string(),
+        CardType::Reversecard => "r".to_string(),
+        CardType::Draw2card => "d".to_string(),
+        CardType::Wildcard => "w".to_string(),
+        CardType::Wildcard4 => "w4".to_string(),
         _ => "".to_string(),
     };
     card.push_str(color);
     card
 }
 
-fn intro_message(mut output: impl Write) {
-    writeln!(output, "\nWelcome to UNO-rs\n").unwrap();
+fn convert_card_to_num(card: &UnoCard) -> u8 {
+    let rem = match card.get_card() {
+        CardType::Number(num) => num,
+        CardType::Skipcard => 10,
+        CardType::Reversecard => 11,
+        CardType::Draw2card => 12,
+        CardType::Wildcard => 13,
+        CardType::Wildcard4 => 14,
+        _ => 0,
+    };
 
-    writeln!(output, "Card Representation:\n \
-                      \tJust like in regular UNO, there are 6 different types of cards\n \
-                      \t1) Number cards: A number followed one of letter representing a color (R(red), B(blue), G(green), Y(yellow))\n \
-                      \t2) Skip cards: An S followed by one of letter representing a color\n \
-                      \t3) Reverse cards: An R followed by one of letter representing a color\n \
-                      \t4) Draw 2 cards: A D followed by one of letter representing a color\n \
-                      \t5) Wild cards: The letter W\n \
-                      \t6) Wild Draw 4 cards: A W4\n").unwrap();
+    let quo = match card.get_color().unwrap() {
+        ColorType::Red => 0,
+        ColorType::Green => 1,
+        ColorType::Blue => 2,
+        ColorType::Yellow => 4,
+        _ => 0,
+    };
 
-    writeln!(output, "\nInstructions: ").unwrap();
-    writeln!(output, "\tAt the start of every round the game will say whose turn it is: Player 1's turn").unwrap();
-    writeln!(output, "\tThen, it will show the last card that was played:               Current Last Card W").unwrap();
-    writeln!(output, "\tFollowed by the current player's hand:                          Player 1 current cards").unwrap();
-    writeln!(output, "\t                                                                1B SG RR DY W W4").unwrap();
-    writeln!(output, "\tTo play type one of the cards in your hand and hit enter").unwrap();
-    writeln!(output, "\tThe game follows standard UNO rules; if you make an invalid move you will be prompted to try again\n").unwrap();
-
-    writeln!(output, "Have fun and good luck!\n\n").unwrap();
-}
-
-#[test]
-fn convert_card_to_string_test() {
-    assert_eq!("4R", convert_card_to_string(&UnoCard::new(ColorType::Red, CardType::Number(4))));
-    assert_eq!("SG", convert_card_to_string(&UnoCard::new(ColorType::Green, CardType::Skipcard)));
-    assert_eq!("RY", convert_card_to_string(&UnoCard::new(ColorType::Yellow, CardType::Reversecard)));
-    assert_eq!("DB", convert_card_to_string(&UnoCard::new(ColorType::Blue, CardType::Draw2card)));
-    assert_eq!("W", convert_card_to_string(&UnoCard::new(ColorType::None, CardType::Wildcard)));
-    assert_eq!("W4", convert_card_to_string(&UnoCard::new(ColorType::None, CardType::Wildcard4)));
+    ((quo + 1) * 27) + (rem + 1) as u8
 }
