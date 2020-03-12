@@ -15,6 +15,10 @@ pub enum InputError {
     WrongColorCard,
     #[error("Incorrect input type: {0}")]
     IncorrectInput(String),
+    #[error("Color not same as last card on hand")]
+    ColorMismatch,
+    #[error("You don't have the card you inputted")]
+    YouDontHaveThisCard,
 }
 
 #[derive(Debug, Error)]
