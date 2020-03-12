@@ -1,6 +1,4 @@
 use super::GamePlayer;
-use rand::prelude::*;
-use std::path::Iter;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ColorType {
