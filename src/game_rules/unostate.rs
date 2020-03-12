@@ -71,7 +71,7 @@ impl GameState for UnoState {
         }
 
         while let Some(cur_card) = self.deck.pop() {
-            if cur_card & 15 >= 10 {
+            if cur_card%15 >= 10 {
                 self.deck.push(cur_card);
             } else {
                 self.last_card = convert_num_to_card(cur_card);
@@ -92,7 +92,7 @@ impl GameState for UnoState {
             match check_input(line?.as_str(), &self.last_card) {
                 Ok((color, action)) => {
                     self.deck.push(convert_card_to_num(&self.last_card));
-                    if !self.update_state(&color, action, pos) {
+                    if action.unwrap() != CardType::None && !self.update_state(&color, action, pos) {
                         writeln!(error, "{}", InputError::YouDontHaveThisCard)?;
                         try_again = true;
                     };
@@ -163,7 +163,7 @@ impl GameState for UnoState {
     fn update_state(&mut self, color: &ColorType, card: Option<CardType>, pos: usize) -> bool {
         if card != Some(CardType::Wildcard) && card != Some(CardType::Wildcard4) {
             let temp_card = UnoCard::new(*color, card.unwrap());
-            if card != Some(CardType::None) && self.players[pos].remove_card(&temp_card) {
+            if self.players[pos].remove_card(&temp_card) {
                 self.last_card.update_color(*color);
                 self.last_card.update_card(card.unwrap());
                 self.player_lens[pos] -= 1;
@@ -171,7 +171,7 @@ impl GameState for UnoState {
             }
         } else {
             let temp_card = UnoCard::new(ColorType::None, card.unwrap());
-            if card != Some(CardType::None) && self.players[pos].remove_card(&temp_card) {
+            if self.players[pos].remove_card(&temp_card) {
                 self.last_card.update_color(*color);
                 self.last_card.update_card(card.unwrap());
                 self.player_lens[pos] -= 1;
