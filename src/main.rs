@@ -6,7 +6,6 @@ use uno::game_rules::unostate::UnoState;
 use uno::player::unoplayer::{UnoPlayer, UnoCard, CardType, ColorType};
 use std::net::TcpStream;
 use std::io::prelude::*;
-use quick_xml::{ Reader, Writer };
 
 mod errors;
 use errors::*;

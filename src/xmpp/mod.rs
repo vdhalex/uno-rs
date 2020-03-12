@@ -1,6 +1,14 @@
 pub mod xmppserver;
+use crate::game_rules::unostate::{ UnoState };
+use std::net::{ TcpStream };
+
+use quick_xml::
 
 pub trait ServeXMPP {
-  fn new() -> Self;
-  fn send_message();
+  fn start() -> usize;
+  fn handle_requests(&self);
+  fn handle_connection(&self, stream: TcpStream) -> Result<(), Err>;
+  fn parse_xml(&self, buff: &[u8]);
+  fn update_state(&self, String) -> UnoState;
+  fn send_message(&self, state: UnoState, state: TcpStream) -> Result<(), Err>;
 }

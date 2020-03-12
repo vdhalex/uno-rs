@@ -1,5 +1,6 @@
 use super::GamePlayer;
 use rand::prelude::*;
+use std::path::Iter;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum ColorType {
@@ -12,7 +13,7 @@ pub enum ColorType {
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CardType {
-    Number(isize),
+    Number(usize),
     Skipcard,
     Reversecard,
     Draw2card,
@@ -34,7 +35,7 @@ pub struct UnoPlayer {
 }
 
 impl UnoCard {
-    fn new(color: ColorType, inst: CardType) -> Self {
+    pub(crate) fn new(color: ColorType, inst: CardType) -> Self {
         UnoCard {
             inst: inst,
             color: Some(color),
@@ -47,6 +48,14 @@ impl UnoCard {
 
     pub(crate) fn get_card(&self) -> CardType {
         self.inst
+    }
+
+    pub(crate) fn update_color(&mut self, color: ColorType) {
+        self.color = Some(color);
+    }
+
+    pub(crate) fn update_card(&mut self, card: CardType) {
+        self.inst = card;
     }
 
     fn clone(&mut self) -> UnoCard {
@@ -68,6 +77,7 @@ impl GamePlayer for UnoPlayer {
     fn add_cards(&mut self, cards: &mut Vec<UnoCard>) {
         for ii in 0..cards.len() {
             self.cards.push(cards[ii].clone());
+            self.len += 1;
         }
     }
 
@@ -75,12 +85,32 @@ impl GamePlayer for UnoPlayer {
         &mut self.cards
     }
 
-    fn remove_card(&mut self, card: &UnoCard) {
+    fn remove_card(&mut self, card: &UnoCard) -> bool {
         for ii in 0..self.len {
             if self.cards[ii] == *card {
                 self.cards.remove(ii);
-                break;
+                self.len -= 1;
+                return true;
             }
         }
+        false
+    }
+}
+
+#[cfg(test)]
+mod test_remove_card {
+    use crate::player::unoplayer::{CardType, ColorType, UnoCard, UnoPlayer};
+    use crate::player::GamePlayer;
+
+    #[test]
+    fn basic_test() {
+        let mut player = UnoPlayer::new();
+        let mut cards = Vec::new();
+        cards.push(UnoCard::new(ColorType::Red, CardType::Number(2)));
+        cards.push(UnoCard::new(ColorType::Green, CardType::Number(4)));
+        player.add_cards(&mut cards);
+        player.remove_card(&cards[0]);
+        assert_eq!(player.show_cards().len(), 1);
+        assert_eq!(player.show_cards(), &mut cards[1..]);
     }
 }
