@@ -6,8 +6,7 @@ use crate::player::unoplayer::{CardType, ColorType, UnoCard, UnoPlayer};
 use crate::player::GamePlayer; // write to the CLI interface
 use rand::Rng;
 use std::collections::HashMap;
-use std::intrinsics::write_bytes;
-use std::io::{stderr, stdin, stdout, BufRead, BufReader, Write};
+use std::io::{BufRead, Write};
 use std::string::ToString;
 
 lazy_static! {
@@ -22,23 +21,14 @@ lazy_static! {
     };
 }
 
-pub enum ActionType {
-    Skip,
-    Reverse,
-    Draw2,
-    ChangeColor,
-    None,
-    WildCard4,
-}
-
 pub struct UnoState {
     deck: Vec<u8>,
     players: [UnoPlayer; 4],
     player_lens: [usize; 4],
     last_card: UnoCard,
-    is_active: bool,
     curr_player: usize,
     curr_action_state: Option<String>,
+    _is_active: bool,
 }
 
 impl GameState for UnoState {
@@ -57,9 +47,9 @@ impl GameState for UnoState {
             ],
             player_lens: [0, 0, 0, 0],
             last_card: UnoCard::new(ColorType::None, CardType::None),
-            is_active: true,
             curr_player: 0,
-            curr_action_state: None
+            curr_action_state: None,
+            _is_active: true,
         };
     }
 
@@ -85,7 +75,7 @@ impl GameState for UnoState {
         }
 
         while let Some(cur_card) = self.deck.pop() {
-            if cur_card & 15 >= 10 {
+            if cur_card%15 >= 10 {
                 self.deck.push(cur_card);
             } else {
                 self.last_card = convert_num_to_card(cur_card);
@@ -106,13 +96,13 @@ impl GameState for UnoState {
             match check_input(line?.as_str(), &self.last_card) {
                 Ok((color, action)) => {
                     self.deck.push(convert_card_to_num(&self.last_card));
-                    if !self.update_state(&color, action, self.curr_player) {
+                    if action.unwrap() != CardType::None && !self.update_state(&color, action, pos) {
                         writeln!(error, "{}", InputError::YouDontHaveThisCard)?;
                         try_again = true;
                     };
                     if !try_again {
                         match action {
-                            Some(CardType::Number(num)) => {
+                            Some(CardType::Number(_num)) => {
                                 self.curr_player = update_position(self.curr_player, delta, 0);
                             }
                             Some(CardType::Skipcard) => {
@@ -173,16 +163,16 @@ impl GameState for UnoState {
 
     fn update_state(&mut self, color: &ColorType, card: Option<CardType>, pos: usize) -> bool {
         if card != Some(CardType::Wildcard) && card != Some(CardType::Wildcard4) {
-            let tempCard = UnoCard::new(*color, card.unwrap());
-            if card != Some(CardType::None) && self.players[pos].remove_card(&tempCard) {
+            let temp_card = UnoCard::new(*color, card.unwrap());
+            if self.players[pos].remove_card(&temp_card) {
                 self.last_card.update_color(*color);
                 self.last_card.update_card(card.unwrap());
                 self.player_lens[pos] -= 1;
                 return true;
             }
         } else {
-            let tempCard = UnoCard::new(ColorType::None, card.unwrap());
-            if card != Some(CardType::None) && self.players[pos].remove_card(&tempCard) {
+            let temp_card = UnoCard::new(ColorType::None, card.unwrap());
+            if self.players[pos].remove_card(&temp_card) {
                 self.last_card.update_color(*color);
                 self.last_card.update_card(card.unwrap());
                 self.player_lens[pos] -= 1;
@@ -229,7 +219,7 @@ impl GameState for UnoState {
 }
 
 fn update_position(pos: usize, delta: i8, skip: usize) -> usize {
-    let mut res = (pos as i8 + (skip as i8 + 1) * delta);
+    let mut res = pos as i8 + (skip as i8 + 1) * delta;
     if res < 0 {
         res += 4;
     }
@@ -331,7 +321,7 @@ fn check_input(
     }
 
     if colort != last_card.get_color().unwrap() && cardt != last_card.get_card() {
-        return Err(InputError::ColorMismatch);
+        return Err(InputError::WrongColorCard);
     }
     Ok((colort, Some(cardt)))
 }

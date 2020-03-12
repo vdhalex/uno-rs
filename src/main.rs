@@ -9,7 +9,6 @@ use std::io::prelude::*;
 
 mod errors;
 use errors::*;
-use std::fs::File;
 use uno::game_rules::GameState;
 
 fn main() {
