@@ -34,7 +34,7 @@ pub struct UnoPlayer {
 }
 
 impl UnoCard {
-    fn new(color: ColorType, inst: CardType) -> Self {
+    pub fn new(color: ColorType, inst: CardType) -> Self {
         UnoCard {
             inst: inst,
             color: Some(color),
@@ -71,8 +71,8 @@ impl GamePlayer for UnoPlayer {
         }
     }
 
-    fn show_cards(&mut self) -> &mut [UnoCard] {
-        &mut self.cards
+    fn show_cards(&self) -> &[UnoCard] {
+        &self.cards
     }
 
     fn remove_card(&mut self, card: &UnoCard) {

@@ -50,6 +50,14 @@ impl GameState for UnoState {
         mut output: impl Write,
         mut error: impl Write,
     ) -> Result<(), Error>{
+
+        intro_message(&mut output);
+
+        for ii in 1..109 {
+            println!("{:?} -> {:?}", ii, convert_num_to_card(ii));
+        }
+
+
         self.shuffle();
         // assign 6 cards to each player
         // set last card to be top of the deck
@@ -70,6 +78,7 @@ impl GameState for UnoState {
         let mut delta = 1;
         print_instructions(pos, self.last_card.as_ref().unwrap(), self.players[pos].show_cards(), &mut output);
         for line in input.lines() {
+            println!("Checking input: {:?}", line);
            match check_input(line?.as_str(), self.last_card.as_ref().unwrap()) {
                Ok((card, color, action)) => {
                    self.last_card = Some(card);
@@ -93,6 +102,7 @@ impl GameState for UnoState {
                }
                Err(err) => {
                    writeln!(error, "Error: {}", err)?;
+                   println!("Try again is true");
                    try_again = true;
                }
            };
@@ -219,7 +229,7 @@ fn check_input(input: &str, last_card: &UnoCard) -> Result<(UnoCard, ColorType, 
 fn print_instructions(player_num: usize, last_card: &UnoCard, player_cards: &[UnoCard], mut output: impl Write) {
     writeln!(output, "Player {}'s turn", player_num+1).unwrap();
     writeln!(output, "Current Last Card {}", convert_card_to_string(last_card)).unwrap();
-    write!(output, "Player {} current cards: ", player_num+1).unwrap();
+    writeln!(output, "Player {} current cards: ", player_num+1).unwrap();
     let card_len = player_cards.len();
     for ii in 0..card_len {
         if ii < card_len-1 {
@@ -235,6 +245,7 @@ fn convert_num_to_card(num: u8) -> UnoCard {
     let cardt;
     let colort;
     let key = num%15;
+
     if key >= 10 {
         cardt = NUM_CODE_MAP[&key];
     } else {
@@ -282,4 +293,37 @@ fn convert_card_to_string(ucard: &UnoCard) -> String {
     };
     card.push_str(color);
     card
+}
+
+fn intro_message(mut output: impl Write) {
+    writeln!(output, "\nWelcome to UNO-rs\n").unwrap();
+
+    writeln!(output, "Card Representation:\n \
+                      \tJust like in regular UNO, there are 6 different types of cards\n \
+                      \t1) Number cards: A number followed one of letter representing a color (R(red), B(blue), G(green), Y(yellow))\n \
+                      \t2) Skip cards: An S followed by one of letter representing a color\n \
+                      \t3) Reverse cards: An R followed by one of letter representing a color\n \
+                      \t4) Draw 2 cards: A D followed by one of letter representing a color\n \
+                      \t5) Wild cards: The letter W\n \
+                      \t6) Wild Draw 4 cards: A W4\n").unwrap();
+
+    writeln!(output, "\nInstructions: ").unwrap();
+    writeln!(output, "\tAt the start of every round the game will say whose turn it is: Player 1's turn").unwrap();
+    writeln!(output, "\tThen, it will show the last card that was played:               Current Last Card W").unwrap();
+    writeln!(output, "\tFollowed by the current player's hand:                          Player 1 current cards").unwrap();
+    writeln!(output, "\t                                                                1B SG RR DY W W4").unwrap();
+    writeln!(output, "\tTo play type one of the cards in your hand and hit enter").unwrap();
+    writeln!(output, "\tThe game follows standard UNO rules; if you make an invalid move you will be prompted to try again\n").unwrap();
+
+    writeln!(output, "Have fun and good luck!\n\n").unwrap();
+}
+
+#[test]
+fn convert_card_to_string_test() {
+    assert_eq!("4R", convert_card_to_string(&UnoCard::new(ColorType::Red, CardType::Number(4))));
+    assert_eq!("SG", convert_card_to_string(&UnoCard::new(ColorType::Green, CardType::Skipcard)));
+    assert_eq!("RY", convert_card_to_string(&UnoCard::new(ColorType::Yellow, CardType::Reversecard)));
+    assert_eq!("DB", convert_card_to_string(&UnoCard::new(ColorType::Blue, CardType::Draw2card)));
+    assert_eq!("W", convert_card_to_string(&UnoCard::new(ColorType::None, CardType::Wildcard)));
+    assert_eq!("W4", convert_card_to_string(&UnoCard::new(ColorType::None, CardType::Wildcard4)));
 }
