@@ -1,13 +1,9 @@
-use std::collections::HashSet;
-use std::io::{stderr, stdin, stdout, BufRead, BufReader, Write};
-use std::path::PathBuf;
-use std::{env, fs, process};
+use std::io::{stderr, stdin, stdout, BufRead, Write};
+use std::{env, process};
 use uno::game_rules::unostate::UnoState;
-use uno::player::unoplayer::{CardType, ColorType, UnoCard, UnoPlayer};
 
 mod errors;
 use errors::*;
-use std::fs::File;
 use uno::game_rules::GameState;
 
 fn main() {
