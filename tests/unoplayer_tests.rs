@@ -3,7 +3,7 @@ use uno::player::unoplayer::{UnoPlayer, UnoCard, ColorType, CardType};
 
 #[test]
 fn player_with_no_cards_test() {
-    let new_player = UnoPlayer::new();
+    let mut new_player = UnoPlayer::new();
     assert_eq!(new_player.show_cards(),[]);
     assert_eq!(new_player.show_cards().len(),0);
 }

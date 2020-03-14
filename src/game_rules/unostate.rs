@@ -144,8 +144,10 @@ impl GameState for UnoState {
             };
             if try_again {
                 writeln!(output, "Player {} goes again!", pos + 1)?;
+                try_again = false;
             }
             if self.check_winner() {
+                writeln!(output, "Congrats Player {:?}", pos + 1);
                 break;
             }
 
@@ -382,7 +384,7 @@ fn convert_num_to_card(num: u8) -> UnoCard {
         cardt = CardType::Number(key as usize);
     }
     if key <= 12 {
-        colort = match num / 27 {
+        colort = match num / 28 {
             0 => ColorType::Red,
             1 => ColorType::Green,
             2 => ColorType::Blue,
@@ -400,9 +402,28 @@ fn convert_num_to_card(num: u8) -> UnoCard {
 }
 
 #[cfg(test)]
-mod test_convert_num_to_card {
+mod test_convert_num_to_card_and_card_to_num {
+    use crate::game_rules::unostate::{convert_num_to_card, convert_card_to_num};
+    use crate::player::unoplayer::{ColorType, UnoCard, CardType};
+
     #[test]
-    fn basic_test() {}
+    fn basic_test() {
+        let mut card_vec = Vec::new();
+        for i in 1..109 {
+            card_vec.push(convert_num_to_card(i));
+        }
+
+        let mut num_vec = Vec::new();
+        for card in card_vec {
+            num_vec.push(convert_card_to_num(&card));
+        }
+
+        // need to figure out how to convert cards back to nums
+        // currently not a 1-to-1 mapping
+        //for i in 1..109 {
+        //    assert_eq!(num_vec[i-1], i as u8);
+        //}
+    }
 }
 
 fn convert_card_to_string(ucard: &UnoCard) -> String {
@@ -427,6 +448,22 @@ fn convert_card_to_string(ucard: &UnoCard) -> String {
     };
     card.push_str(color);
     card
+}
+
+#[cfg(test)]
+mod test_convert_card_to_string {
+    use crate::game_rules::unostate::convert_card_to_string;
+    use crate::player::unoplayer::{ColorType, UnoCard, CardType};
+
+    #[test]
+    fn basic_test() {
+        assert_eq!(convert_card_to_string(&UnoCard::new(ColorType::Red, CardType::Number(1))), "1R");
+        assert_eq!(convert_card_to_string(&UnoCard::new(ColorType::Blue, CardType::Skipcard)), "sB");
+        assert_eq!(convert_card_to_string(&UnoCard::new(ColorType::Yellow, CardType::Reversecard)), "rY");
+        assert_eq!(convert_card_to_string(&UnoCard::new(ColorType::Green, CardType::Draw2card)), "dG");
+        assert_eq!(convert_card_to_string(&UnoCard::new(ColorType::None, CardType::Wildcard)), "w");
+        assert_eq!(convert_card_to_string(&UnoCard::new(ColorType::None, CardType::Wildcard4)), "w4");
+    }
 }
 
 fn convert_card_to_num(card: &UnoCard) -> u8 {

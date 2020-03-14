@@ -33,7 +33,7 @@ pub struct UnoPlayer {
 }
 
 impl UnoCard {
-    pub(crate) fn new(color: ColorType, inst: CardType) -> Self {
+    pub fn new(color: ColorType, inst: CardType) -> Self {
         UnoCard {
             inst: inst,
             color: Some(color),
