@@ -148,6 +148,7 @@ impl GameState for UnoState {
                 try_again = false;
             }
             if self.check_winner() {
+                writeln!(output, "Congrats Player {:?}", pos + 1);
                 break;
             }
             print_instructions(
