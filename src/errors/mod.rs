@@ -1,7 +1,7 @@
 use std::io;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq)]
 pub enum InputError {
     #[error("Hand played not same as last hand color")]
     WrongColorCard,

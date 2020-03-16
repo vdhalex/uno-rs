@@ -3,7 +3,7 @@ extern crate rand;
 use super::GameState;
 use crate::errors::{Error, InputError};
 use crate::player::unoplayer::{CardType, ColorType, UnoCard, UnoPlayer};
-use crate::player::GamePlayer; // write to the CLI interface
+use crate::player::GamePlayer;
 use rand::Rng;
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
@@ -71,7 +71,7 @@ impl GameState for UnoState {
         }
 
         while let Some(cur_card) = self.deck.pop() {
-            if cur_card%15 >= 10 {
+            if cur_card % 15 >= 10 {
                 self.deck.push(cur_card);
             } else {
                 self.last_card = convert_num_to_card(cur_card);
@@ -92,7 +92,8 @@ impl GameState for UnoState {
             match check_input(line?.as_str(), &self.last_card) {
                 Ok((color, action)) => {
                     self.deck.push(convert_card_to_num(&self.last_card));
-                    if action.unwrap() != CardType::None && !self.update_state(&color, action, pos) {
+                    if action.unwrap() != CardType::None && !self.update_state(&color, action, pos)
+                    {
                         writeln!(error, "{}", InputError::YouDontHaveThisCard)?;
                         try_again = true;
                     };
@@ -144,11 +145,11 @@ impl GameState for UnoState {
             };
             if try_again {
                 writeln!(output, "Player {} goes again!", pos + 1)?;
+                try_again = false;
             }
             if self.check_winner() {
                 break;
             }
-
             print_instructions(
                 pos,
                 &self.last_card,
@@ -313,6 +314,7 @@ fn check_input(
 
 #[cfg(test)]
 mod test_check_input {
+    use crate::errors::InputError;
     use crate::game_rules::unostate::check_input;
     use crate::player::unoplayer::{CardType, ColorType, UnoCard};
 
@@ -329,7 +331,69 @@ mod test_check_input {
                 assert_eq!(color, ColorType::Red);
                 assert_eq!(num.unwrap(), CardType::Number(8))
             }
-            Err(err) => println!("Found an error"),
+            Err(_err) => println!("Found an error"),
+        }
+    }
+
+    #[test]
+    fn basic_test_number() {
+        match check_input(
+            "4B",
+            &UnoCard {
+                inst: CardType::Number(4),
+                color: Some(ColorType::Red),
+            },
+        ) {
+            Ok((color, num)) => {
+                assert_eq!(color, ColorType::Blue);
+                assert_eq!(num.unwrap(), CardType::Number(4))
+            }
+            Err(_err) => println!("Found an error"),
+        }
+    }
+
+    #[test]
+    fn test_wildcard4() {
+        match check_input(
+            "w4 B",
+            &UnoCard {
+                inst: CardType::Number(6),
+                color: Some(ColorType::Red),
+            },
+        ) {
+            Ok((color, num)) => {
+                assert_eq!(color, ColorType::Blue);
+                assert_eq!(num.unwrap(), CardType::Wildcard4)
+            }
+            Err(_err) => println!("Found an error in test_wildcard()"),
+        }
+    }
+
+    #[test]
+    fn test_input_error() {
+        match check_input(
+            "4 R",
+            &UnoCard {
+                inst: CardType::Number(4),
+                color: Some(ColorType::Red),
+            },
+        ) {
+            Ok((_c, _a)) => println!("Should get error but test_input_error worked"),
+            Err(err) => assert_eq!(err, InputError::IncorrectInput("4 R".to_string())),
+        }
+    }
+
+    #[test]
+    fn test_wrong_color_input() {
+        match check_input(
+            "5B",
+            &UnoCard {
+                inst: CardType::Number(4),
+                color: Some(ColorType::Red),
+            },
+        ) {
+            Ok((_c, _a)) => println!("Should get error but test_input_error worked"),
+            Err(err) => assert_eq!(err, InputError::WrongColorCard),
         }
     }
 
@@ -342,8 +406,11 @@ mod test_check_input {
                 color: Some(ColorType::Red),
             },
         ) {
-            Ok((color, num)) => assert_eq!(color, ColorType::Blue),
-            Err(err) => println!("Found an error"),
+            Ok((color, num)) => {
+                assert_eq!(color, ColorType::Blue);
+                assert_eq!(num.unwrap(), CardType::Wildcard)
+            }
+            Err(_err) => println!("Found an error"),
         }
     }
 }
@@ -382,7 +449,7 @@ fn convert_num_to_card(num: u8) -> UnoCard {
         cardt = CardType::Number(key as usize);
     }
     if key <= 12 {
-        colort = match num / 27 {
+        colort = match num / 28 {
             0 => ColorType::Red,
             1 => ColorType::Green,
             2 => ColorType::Blue,
@@ -401,8 +468,41 @@ fn convert_num_to_card(num: u8) -> UnoCard {
 
 #[cfg(test)]
 mod test_convert_num_to_card {
+    use crate::game_rules::unostate::convert_num_to_card;
+    use crate::player::unoplayer::{CardType, ColorType, UnoCard};
+
     #[test]
-    fn basic_test() {}
+    fn basic_test() {
+        assert_eq!(
+            convert_num_to_card(45),
+            UnoCard {
+                inst: CardType::Number(0),
+                color: Some(ColorType::Green)
+            }
+        )
+    }
+
+    #[test]
+    fn test_wildcard() {
+        assert_eq!(
+            convert_num_to_card(59),
+            UnoCard {
+                inst: CardType::Wildcard4,
+                color: Some(ColorType::None)
+            }
+        )
+    }
+
+    #[test]
+    fn test_skip() {
+        assert_eq!(
+            convert_num_to_card(10),
+            UnoCard {
+                inst: CardType::Skipcard,
+                color: Some(ColorType::Red)
+            }
+        )
+    }
 }
 
 fn convert_card_to_string(ucard: &UnoCard) -> String {
@@ -427,6 +527,67 @@ fn convert_card_to_string(ucard: &UnoCard) -> String {
     };
     card.push_str(color);
     card
+}
+
+#[cfg(test)]
+mod test_convert_card_to_string {
+    use crate::game_rules::unostate::convert_card_to_string;
+    use crate::player::unoplayer::{CardType, ColorType, UnoCard};
+
+    #[test]
+    fn test_basic_conversion() {
+        assert_eq!(
+            convert_card_to_string(&UnoCard {
+                inst: CardType::Number(2),
+                color: Some(ColorType::Red),
+            }),
+            "2R".to_string()
+        )
+    }
+
+    #[test]
+    fn test_skip() {
+        assert_eq!(
+            convert_card_to_string(&UnoCard {
+                inst: CardType::Skipcard,
+                color: Some(ColorType::Blue),
+            }),
+            "sB".to_string()
+        )
+    }
+
+    #[test]
+    fn test_reverse() {
+        assert_eq!(
+            convert_card_to_string(&UnoCard {
+                inst: CardType::Reversecard,
+                color: Some(ColorType::Green),
+            }),
+            "rG".to_string()
+        )
+    }
+
+    #[test]
+    fn test_draw2() {
+        assert_eq!(
+            convert_card_to_string(&UnoCard {
+                inst: CardType::Draw2card,
+                color: Some(ColorType::Yellow),
+            }),
+            "dY".to_string()
+        )
+    }
+
+    #[test]
+    fn test_wildcard() {
+        assert_eq!(
+            convert_card_to_string(&UnoCard {
+                inst: CardType::Wildcard,
+                color: Some(ColorType::Red),
+            }),
+            "wR".to_string()
+        )
+    }
 }
 
 fn convert_card_to_num(card: &UnoCard) -> u8 {

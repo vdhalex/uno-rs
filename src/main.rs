@@ -2,9 +2,10 @@ use std::io::{stderr, stdin, stdout, BufRead, Write};
 use std::{env, process};
 use uno::game_rules::unostate::UnoState;
 
+use uno::game_rules::GameState;
+
 mod errors;
 use errors::*;
-use uno::game_rules::GameState;
 
 fn main() {
     finish(interact(stdin().lock(), stdout(), stderr()));
