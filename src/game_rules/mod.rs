@@ -1,5 +1,5 @@
 use crate::errors::Error;
-use crate::player::unoplayer::{CardType, ColorType};
+use crate::player::unoplayer::{CardType, ColorType, UnoCard};
 use std::io::{BufRead, Write};
 
 pub mod unostate;
@@ -16,4 +16,5 @@ pub trait GameState {
     fn shuffle(&mut self);
     fn check_winner(&self) -> bool;
     fn to_xml(&self) -> String;
+    fn convert_num_to_card(&self, num: u8) -> UnoCard;
 }

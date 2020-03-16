@@ -67,7 +67,7 @@ impl GameState for UnoState {
             // change this to convert u8s to unoCards
             let mut temp_cards = Vec::new();
             for ii in self.deck[0..6].to_vec() {
-                temp_cards.push(convert_num_to_card(ii));
+                temp_cards.push(self.convert_num_to_card(ii));
             }
             self.players[i].add_cards(&mut temp_cards);
             self.player_lens[i] = 6;
@@ -78,7 +78,7 @@ impl GameState for UnoState {
             if cur_card%15 >= 10 {
                 self.deck.push(cur_card);
             } else {
-                self.last_card = convert_num_to_card(cur_card);
+                self.last_card = self.convert_num_to_card(cur_card);
                 break;
             }
         }
@@ -96,7 +96,7 @@ impl GameState for UnoState {
             match check_input(line?.as_str(), &self.last_card) {
                 Ok((color, action)) => {
                     self.deck.push(convert_card_to_num(&self.last_card));
-                    if action.unwrap() != CardType::None && !self.update_state(&color, action, pos) {
+                    if action.unwrap() != CardType::None && !self.update_state(&color, action, self.curr_player) {
                         writeln!(error, "{}", InputError::YouDontHaveThisCard)?;
                         try_again = true;
                     };
@@ -116,7 +116,7 @@ impl GameState for UnoState {
                                 let cards = self.deck[0..2].to_vec();
                                 self.curr_player = update_position(self.curr_player, delta, 0);
                                 self.players[self.curr_player].add_cards(
-                                    &mut cards.iter().map(|c| convert_num_to_card(*c)).collect(),
+                                    &mut cards.iter().map(|c| self.convert_num_to_card(*c)).collect(),
                                 );
                             }
                             Some(CardType::Wildcard) => {
@@ -126,13 +126,13 @@ impl GameState for UnoState {
                                 let cards = self.deck[0..4].to_vec();
                                 self.curr_player = update_position(self.curr_player, delta, 0);
                                 self.players[self.curr_player].add_cards(
-                                    &mut cards.iter().map(|c| convert_num_to_card(*c)).collect(),
+                                    &mut cards.iter().map(|c| self.convert_num_to_card(*c)).collect(),
                                 );
                             }
                             Some(CardType::None) => {
                                 let cards = self.deck[0..2].to_vec();
                                 self.players[self.curr_player].add_cards(
-                                    &mut cards.iter().map(|c| convert_num_to_card(*c)).collect(),
+                                    &mut cards.iter().map(|c| self.convert_num_to_card(*c)).collect(),
                                 );
                                 self.curr_player = update_position(self.curr_player, delta, 0);
                             }
@@ -155,7 +155,7 @@ impl GameState for UnoState {
 
             // ERROR IS HERE
             // OUTPUT HAS USE OF MOVED VALUE ERROR
-            print_instructions(self.curr_player, self.last_card.as_ref().unwrap(), self.players[self.curr_player].show_cards(), &mut output);
+            print_instructions(self.curr_player, &self.last_card, self.players[self.curr_player].show_cards(), &mut output);
         }
         // begin input for the game
         Ok(())
@@ -208,13 +208,40 @@ impl GameState for UnoState {
         let next_player = format!("<player>{}</player>", self.curr_player+1);
         let last_card = format!("<last-card>{}</last-card>", convert_card_to_num(&self.last_card));
         let deck_encrypted = format!("<deck-encrypted>{}</deck-encrypted>", self.deck.iter().map(|u| u.to_string() + " ").collect::<String>());
-        if let Some(state) = self.curr_action_state {
+        if let Some(state) = &self.curr_action_state {
             curr_action_state= format!("<current-action-state>{}</current-action-state>", state)
         } else {
             curr_action_state = format!("<current-action-state>none</current-action-state>");
         }
 
         next_player + &last_card + &deck_encrypted + &curr_action_state
+    }
+
+    fn convert_num_to_card(&self, num: u8) -> UnoCard {
+        let cardt;
+        let colort;
+        let key = num % 15;
+        if key >= 10 {
+            cardt = NUM_CODE_MAP[&key];
+        } else {
+            cardt = CardType::Number(key as usize);
+        }
+        if key <= 12 {
+            colort = match num / 27 {
+                0 => ColorType::Red,
+                1 => ColorType::Green,
+                2 => ColorType::Blue,
+                3 => ColorType::Yellow,
+                _ => ColorType::None,
+            };
+        } else {
+            colort = ColorType::None;
+        }
+    
+        UnoCard {
+            inst: cardt,
+            color: Some(colort),
+        }
     }
 }
 
@@ -384,33 +411,6 @@ fn print_instructions(
         } else {
             writeln!(output, "{}", convert_card_to_string(&player_cards[ii])).unwrap();
         }
-    }
-}
-
-fn convert_num_to_card(num: u8) -> UnoCard {
-    let cardt;
-    let colort;
-    let key = num % 15;
-    if key >= 10 {
-        cardt = NUM_CODE_MAP[&key];
-    } else {
-        cardt = CardType::Number(key as usize);
-    }
-    if key <= 12 {
-        colort = match num / 27 {
-            0 => ColorType::Red,
-            1 => ColorType::Green,
-            2 => ColorType::Blue,
-            3 => ColorType::Yellow,
-            _ => ColorType::None,
-        };
-    } else {
-        colort = ColorType::None;
-    }
-
-    UnoCard {
-        inst: cardt,
-        color: Some(colort),
     }
 }
 
