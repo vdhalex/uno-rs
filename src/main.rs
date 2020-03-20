@@ -1,11 +1,11 @@
 use std::collections::HashSet;
-use std::io::{stderr, stdin, stdout, BufRead, BufReader, Write, Read};
+use std::io::prelude::*;
+use std::io::{stderr, stdin, stdout, BufRead, BufReader, Read, Write};
+use std::net::TcpStream;
 use std::path::PathBuf;
 use std::{env, fs, process};
 use uno::game_rules::unostate::UnoState;
-use uno::player::unoplayer::{UnoPlayer, UnoCard, CardType, ColorType};
-use std::net::TcpStream;
-use std::io::prelude::*;
+use uno::player::unoplayer::{CardType, ColorType, UnoCard, UnoPlayer};
 
 mod errors;
 use errors::*;
@@ -20,13 +20,13 @@ fn main() {
 //     let mut stream = TcpStream::connect("127.0.0.1:5222")?;
 //     let mut buffer: Vec<u8> = vec![];
 
-    // let request = "
-    //     <message key='111' from='curr_player'>
-    //         <player-turn>next_player<player-turn/>
-    //         <last-card>hashlabelofcard</last-card>
-    //         <deck-encrypted>b'000000'etcetc</deck-encrypted>
-    //         <current-action-state>draw2, draw4 or none</current-action-state>
-    //     </message>";
+// let request = "
+//     <message key='111' from='curr_player'>
+//         <player-turn>next_player<player-turn/>
+//         <last-card>hashlabelofcard</last-card>
+//         <deck-encrypted>b'000000'etcetc</deck-encrypted>
+//         <current-action-state>draw2, draw4 or none</current-action-state>
+//     </message>";
 
 //     stream.write(request.as_bytes())?;
 //     stream.read(&mut buffer)?;
@@ -36,11 +36,7 @@ fn main() {
 //     Ok(())
 // }
 
-fn interact(
-    input: impl BufRead,
-    output: impl Write,
-    error: impl Write,
-) -> Result<(), Error>{
+fn interact(input: impl BufRead, output: impl Write, error: impl Write) -> Result<(), Error> {
     let mut new_game_state = UnoState::new();
     new_game_state.begin_play(input, output, error);
     Ok(())

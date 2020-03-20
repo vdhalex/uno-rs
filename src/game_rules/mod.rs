@@ -12,9 +12,12 @@ pub trait GameState {
         output: impl Write,
         error: impl Write,
     ) -> Result<(), Error>;
+    fn start_game(&self);
+    fn play_turn(&self);
     fn update_state(&mut self, color: &ColorType, card: Option<CardType>, pos: usize) -> bool;
     fn shuffle(&mut self);
     fn check_winner(&self) -> bool;
     fn to_xml(&self) -> String;
     fn convert_num_to_card(&self, num: u8) -> UnoCard;
+    fn convert_card_to_num(&self, card: &UnoCard) -> u8;
 }
